@@ -1,53 +1,51 @@
-# Python Venv Manager
+# Venvy - Python Virtual Environment Manager
 
-A user-friendly desktop application built with PyQt5 for managing Python virtual environments. This tool provides a graphical interface to create, browse, and open virtual environments in VSCode.
+a simple gui based programm to manage python venvs
 
 ## Features
 
-- Browse and list existing virtual environments
-- Create new virtual environments with custom names
-- View detailed information about selected virtual environments
-- Open virtual environments directly in VSCode with the correct Python interpreter
-- Browse custom folders to scan for virtual environments
+- **Browse and Manage Venvs**: Easily view and manage all your Python virtual environments in one place
+- **Create New Venvs**: Create new virtual environments with a simple interface
+- **Open Terminal**: Quickly open a terminal with the selected virtual environment activated
+- **Copy Activation Commands**: One-click copy of activation commands for easy use
+- **Delete Venvs**: Safely remove virtual environments you no longer need
+- **Automatic Detection**: Automatically finds virtual environments in common locations
 
 ## Requirements
 
-- Python 3.x
+- Python 3.6 or higher
 - PyQt5
-- VSCode (for opening environments)
+- venv (included in Python standard library)
 
 ## Installation
 
-1. Clone this repository or download the source code
-2. Install the required dependencies:
-   ```bash
-   pip install PyQt5
-   ```
+1. Clone this repository:
+```bash
+git clone https://github.com/samuDevHTL/venvy.git
+cd venvy
+```
+
+2. Install the required packages:
+```bash
+pip install -r requirements.txt
+```
 
 ## Usage
 
-1. Run the application:
-   ```bash
-   python venvy.py
-   ```
+Run the application:
+```bash
+python venvy.py
+```
 
-2. The main window will show a list of detected virtual environments
-3. Use the buttons to:
-   - Create a new virtual environment
-   - Open the selected environment in VSCode
-   - Browse for virtual environments in a different folder
+### Main Features
 
-## How It Works
-
-The application scans your home directory by default for virtual environments. It detects them by checking for the presence of activation scripts (`activate.bat` on Windows or `activate` on Unix-like systems).
-
-When you select a virtual environment, you can see its path and the Python interpreter location. The "Open in VSCode" feature automatically configures VSCode to use the correct Python interpreter from the selected virtual environment.
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Contributing
-
-Feel free to submit issues and enhancement requests!
- 
+- **List View**: Shows all detected virtual environments
+- **Info Panel**: Displays details about the selected virtual environment
+  - Path to the virtual environment
+  - Python executable location
+  - Activation command with copy button
+- **Actions**:
+  - Create new virtual environment
+  - Open terminal with selected venv activated
+  - Browse for additional venv locations
+  - Delete virtual environments (right-click menu)

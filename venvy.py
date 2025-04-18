@@ -4,10 +4,10 @@ import subprocess
 from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
-    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea, QLineEdit, QComboBox, QDialog
+    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea, QLineEdit, QComboBox, QDialog, QMenu, QToolTip
 )
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from PyQt5.QtCore import Qt, QSize, QRect
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QCursor
 import fnmatch
 
 class ModernButton(QPushButton):
@@ -61,6 +61,17 @@ class VenvManager(QWidget):
                 font-size: 13px;
                 color: #B0B0B0;
             }
+            QMenu {
+                background-color: #2D2D2D;
+                border: 1px solid #3D3D3D;
+                color: #E0E0E0;
+            }
+            QMenu::item {
+                padding: 5px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #2E7D32;
+            }
         """)
 
         # Main layout
@@ -105,6 +116,8 @@ class VenvManager(QWidget):
         """)
 
         self.venv_list = QListWidget()
+        self.venv_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.venv_list.customContextMenuRequested.connect(self.show_context_menu)
         self.venv_list.setStyleSheet("""
             QListWidget {
                 background-color: #2D2D2D;
@@ -131,13 +144,32 @@ class VenvManager(QWidget):
                 background-color: #2D2D2D;
                 border: 1px solid #3D3D3D;
                 border-radius: 4px;
-                padding: 8px;
+                padding: 6px;
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 2px;
+                padding: 2px 5px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #388E3C;
+            }
+            QPushButton:pressed {
+                background-color: #2E7D32;
+            }
+            QLabel {
+                color: #B0B0B0;
+                font-size: 12px;
             }
         """)
-        info_layout = QVBoxLayout(info_frame)
+        self.info_layout = QVBoxLayout(info_frame)
+        self.info_layout.setSpacing(4)  # Reduced spacing between elements
+        self.info_layout.setContentsMargins(6, 6, 6, 6)  # Reduced margins
         self.info_label = QLabel("Select a venv to see details.")
-        self.info_label.setStyleSheet("font-size: 13px; color: #B0B0B0;")
-        info_layout.addWidget(self.info_label)
+        self.info_layout.addWidget(self.info_label)
         main_layout.addWidget(info_frame)
 
         # Buttons
@@ -237,16 +269,57 @@ class VenvManager(QWidget):
                 
         return False
 
+    def copy_to_clipboard(self, text):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+        # Show a temporary tooltip
+        QToolTip.showText(QCursor.pos(), "Copied to clipboard!", self, QRect(), 1000)
+
     def update_info(self):
         item = self.venv_list.currentItem()
         if item:
             path = Path(item.text())
             python_exe = path / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-            self.info_label.setText(
-                f"<b>Path:</b> {path}<br>"
-                f"<b>Python:</b> {python_exe}<br>"
-                f"<b>Status:</b> <span style='color: #4CAF50;'>Ready to use</span>"
-            )
+            
+            # Get activation command
+            if os.name == "nt":  # Windows
+                activate_cmd = f'"{path / "Scripts" / "activate.bat"}"'
+            else:  # Unix-like systems
+                activate_cmd = f'source "{path / "bin" / "activate"}"'
+            
+            # Clear previous widgets
+            for i in reversed(range(self.info_layout.count())): 
+                self.info_layout.itemAt(i).widget().setParent(None)
+            
+            # Create new widgets with more compact layout
+            path_label = QLabel(f"<b>Path:</b> {path}")
+            python_label = QLabel(f"<b>Python:</b> {python_exe}")
+            
+            # Add basic info
+            for label in [path_label, python_label]:
+                self.info_layout.addWidget(label)
+            
+            # Add separator
+            separator = QFrame()
+            separator.setFrameShape(QFrame.HLine)
+            separator.setStyleSheet("background-color: #3D3D3D;")
+            separator.setFixedHeight(1)
+            self.info_layout.addWidget(separator)
+            
+            # Command layout with inline copy button
+            cmd_layout = QHBoxLayout()
+            cmd_layout.setSpacing(4)  # Reduced spacing
+            
+            cmd_text = QLabel(f"<span style='color: #4CAF50;'>{activate_cmd}</span>")
+            
+            cmd_copy_btn = QPushButton("Copy")
+            cmd_copy_btn.setFixedSize(45, 22)  # Even smaller button
+            cmd_copy_btn.clicked.connect(lambda: self.copy_to_clipboard(activate_cmd))
+            
+            cmd_layout.addWidget(cmd_text)
+            cmd_layout.addWidget(cmd_copy_btn)
+            cmd_layout.addStretch()
+            self.info_layout.addLayout(cmd_layout)
         else:
             self.info_label.setText("Select a venv to see details.")
 
@@ -475,6 +548,63 @@ class VenvManager(QWidget):
         if folder:
             self.base_path = folder
             self.load_venvs()
+
+    def show_context_menu(self, position):
+        item = self.venv_list.itemAt(position)
+        if not item:
+            return
+
+        menu = QMenu()
+        delete_action = menu.addAction("Delete")
+        delete_action.triggered.connect(lambda: self.delete_venv(item))
+        
+        menu.exec_(self.venv_list.mapToGlobal(position))
+
+    def delete_venv(self, item):
+        path = Path(item.text())
+        
+        # Create confirmation dialog
+        confirm_dialog = QDialog(self)
+        confirm_dialog.setWindowTitle("Confirm Deletion")
+        confirm_dialog.setStyleSheet("""
+            QDialog {
+                background-color: #1E1E1E;
+                color: #E0E0E0;
+            }
+            QLabel {
+                color: #B0B0B0;
+                font-size: 13px;
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        confirm_dialog.setLayout(layout)
+        
+        message = QLabel(f"Are you sure you want to delete the virtual environment at:\n{path}?")
+        message.setWordWrap(True)
+        layout.addWidget(message)
+        
+        button_layout = QHBoxLayout()
+        delete_btn = ModernButton("Delete")
+        cancel_btn = ModernButton("Cancel")
+        button_layout.addWidget(delete_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+        
+        confirm_dialog.setFixedSize(400, 150)
+        confirm_dialog.setWindowModality(Qt.ApplicationModal)
+        
+        delete_btn.clicked.connect(confirm_dialog.accept)
+        cancel_btn.clicked.connect(confirm_dialog.reject)
+        
+        if confirm_dialog.exec_() == QDialog.Accepted:
+            try:
+                import shutil
+                shutil.rmtree(path)
+                self.load_venvs()  # Refresh the list
+                QMessageBox.information(self, "Success", "Virtual environment deleted successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete virtual environment:\n{str(e)}")
 
 
 if __name__ == "__main__":
