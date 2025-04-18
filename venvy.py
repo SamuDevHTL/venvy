@@ -4,10 +4,11 @@ import subprocess
 from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
-    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea
+    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea, QLineEdit, QComboBox, QDialog
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+import fnmatch
 
 class ModernButton(QPushButton):
     def __init__(self, text, parent=None):
@@ -34,7 +35,7 @@ class ModernButton(QPushButton):
 class VenvManager(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Python Venv Manager")
+        self.setWindowTitle("Venvy")
         self.setGeometry(100, 100, 700, 500)  # Smaller window size
         self.setStyleSheet("""
             QWidget {
@@ -68,7 +69,7 @@ class VenvManager(QWidget):
         main_layout.setContentsMargins(15, 15, 15, 15)  # Reduced margins
 
         # Title
-        title = QLabel("Python Virtual Environment Manager")
+        title = QLabel("Venvy")
         title.setStyleSheet("""
             QLabel {
                 font-size: 20px;
@@ -249,19 +250,176 @@ class VenvManager(QWidget):
         else:
             self.info_label.setText("Select a venv to see details.")
 
+    def find_python_versions(self):
+        """Find available Python versions on the system."""
+        versions = []
+        if os.name == "nt":  # Windows
+            # Check common Windows Python installation locations
+            common_paths = [
+                r"C:\Python*",
+                r"C:\Program Files\Python*",
+                r"C:\Program Files (x86)\Python*",
+                r"C:\Users\{}\AppData\Local\Programs\Python\Python*".format(os.getenv('USERNAME'))
+            ]
+            
+            for path_pattern in common_paths:
+                # Convert glob pattern to list of matching paths
+                try:
+                    # Use os.path.expandvars to handle environment variables
+                    expanded_path = os.path.expandvars(path_pattern)
+                    # Use os.path.expanduser to handle ~
+                    expanded_path = os.path.expanduser(expanded_path)
+                    # Get the directory part for globbing
+                    dir_path = os.path.dirname(expanded_path)
+                    pattern = os.path.basename(expanded_path)
+                    
+                    if not os.path.exists(dir_path):
+                        continue
+                        
+                    # List all matching directories
+                    for item in os.listdir(dir_path):
+                        full_path = os.path.join(dir_path, item)
+                        if os.path.isdir(full_path) and fnmatch.fnmatch(item, pattern):
+                            python_exe = os.path.join(full_path, "python.exe")
+                            if os.path.exists(python_exe):
+                                try:
+                                    result = subprocess.run([python_exe, "--version"], 
+                                                          capture_output=True, text=True)
+                                    version = result.stdout.strip()
+                                    versions.append((version, python_exe))
+                                except:
+                                    continue
+                except Exception as e:
+                    print(f"Error checking path {path_pattern}: {e}")
+                    continue
+        else:  # Unix-like systems
+            # Check common Unix Python locations
+            common_paths = [
+                "/usr/bin/python*",
+                "/usr/local/bin/python*",
+                "/opt/python*/bin/python*"
+            ]
+            
+            for path_pattern in common_paths:
+                try:
+                    dir_path = os.path.dirname(path_pattern)
+                    pattern = os.path.basename(path_pattern)
+                    
+                    if not os.path.exists(dir_path):
+                        continue
+                        
+                    for item in os.listdir(dir_path):
+                        full_path = os.path.join(dir_path, item)
+                        if os.path.isfile(full_path) and not os.path.islink(full_path) and fnmatch.fnmatch(item, pattern):
+                            try:
+                                result = subprocess.run([full_path, "--version"], 
+                                                      capture_output=True, text=True)
+                                version = result.stdout.strip()
+                                versions.append((version, full_path))
+                            except:
+                                continue
+                except Exception as e:
+                    print(f"Error checking path {path_pattern}: {e}")
+                    continue
+        
+        # Add the current Python version
+        current_version = f"Python {sys.version.split()[0]} (Current)"
+        versions.insert(0, (current_version, sys.executable))
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_versions = []
+        for version, path in versions:
+            if path not in seen:
+                seen.add(path)
+                unique_versions.append((version, path))
+        
+        return unique_versions
+
     def create_venv(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder for New Venv")
         if not folder:
             return
-        name, ok = QInputDialog.getText(self, "Venv Name", "Enter name for new venv:")
-        if ok and name:
+            
+        # Get available Python versions
+        versions = self.find_python_versions()
+        if not versions:
+            QMessageBox.critical(self, "Error", "No Python versions found on the system.")
+            return
+            
+        # Create dialog for venv name and Python version
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Create New Virtual Environment")
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #1E1E1E;
+                color: #E0E0E0;
+            }
+            QLineEdit, QComboBox {
+                background-color: #2D2D2D;
+                border: 1px solid #3D3D3D;
+                border-radius: 4px;
+                padding: 5px;
+                color: #E0E0E0;
+                min-width: 200px;
+            }
+            QLabel {
+                color: #B0B0B0;
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        dialog.setLayout(layout)
+        
+        # Name input
+        name_layout = QHBoxLayout()
+        name_label = QLabel("Name:")
+        name_input = QLineEdit()
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(name_input)
+        layout.addLayout(name_layout)
+        
+        # Python version selection
+        version_layout = QHBoxLayout()
+        version_label = QLabel("Python Version:")
+        version_combo = QComboBox()
+        for version, path in versions:
+            version_combo.addItem(version, path)
+        version_layout.addWidget(version_label)
+        version_layout.addWidget(version_combo)
+        layout.addLayout(version_layout)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        create_btn = ModernButton("Create")
+        cancel_btn = ModernButton("Cancel")
+        button_layout.addWidget(create_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+        
+        # Dialog setup
+        dialog.setFixedSize(400, 150)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        
+        # Connect signals
+        create_btn.clicked.connect(dialog.accept)
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            name = name_input.text().strip()
+            if not name:
+                QMessageBox.warning(self, "Error", "Please enter a name for the virtual environment.")
+                return
+                
+            python_path = version_combo.currentData()
             venv_path = Path(folder) / name
+            
             try:
-                subprocess.run([sys.executable, "-m", "venv", str(venv_path)], check=True)
+                subprocess.run([python_path, "-m", "venv", str(venv_path)], check=True)
                 QMessageBox.information(self, "Success", f"Venv '{name}' created!")
                 self.load_venvs()
-            except subprocess.CalledProcessError:
-                QMessageBox.critical(self, "Error", "Failed to create virtual environment.")
+            except subprocess.CalledProcessError as e:
+                QMessageBox.critical(self, "Error", f"Failed to create virtual environment:\n{str(e)}")
 
     def open_terminal(self):
         item = self.venv_list.currentItem()
