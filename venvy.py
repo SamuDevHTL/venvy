@@ -4,46 +4,162 @@ import subprocess
 from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
-    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox
+    QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea
 )
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 
+class ModernButton(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setFixedHeight(35)  # Slightly smaller height
+        self.setCursor(Qt.PointingHandCursor)
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #388E3C;
+            }
+            QPushButton:pressed {
+                background-color: #2E7D32;
+            }
+        """)
 
 class VenvManager(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Python Venv Manager")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 700, 500)  # Smaller window size
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1E1E1E;
+                color: #E0E0E0;
+            }
+            QListWidget {
+                background-color: #2D2D2D;
+                border: 1px solid #3D3D3D;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 13px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #3D3D3D;
+            }
+            QListWidget::item:selected {
+                background-color: #2E7D32;
+                color: white;
+            }
+            QLabel {
+                font-size: 13px;
+                color: #B0B0B0;
+            }
+        """)
+
+        # Main layout
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(15)  # Reduced spacing
+        main_layout.setContentsMargins(15, 15, 15, 15)  # Reduced margins
+
+        # Title
+        title = QLabel("Python Virtual Environment Manager")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 20px;
+                font-weight: bold;
+                color: #4CAF50;
+                padding: 8px;
+            }
+        """)
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+
+        # List widget with scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #1E1E1E;
+                width: 8px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #4CAF50;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
 
         self.venv_list = QListWidget()
+        self.venv_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2D2D2D;
+                border: 1px solid #3D3D3D;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #3D3D3D;
+            }
+            QListWidget::item:selected {
+                background-color: #2E7D32;
+                color: white;
+            }
+        """)
+        scroll.setWidget(self.venv_list)
+        main_layout.addWidget(scroll)
+
+        # Info label with frame
+        info_frame = QFrame()
+        info_frame.setStyleSheet("""
+            QFrame {
+                background-color: #2D2D2D;
+                border: 1px solid #3D3D3D;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """)
+        info_layout = QVBoxLayout(info_frame)
         self.info_label = QLabel("Select a venv to see details.")
-        self.base_path = str(Path.home())  # default path to scan
+        self.info_label.setStyleSheet("font-size: 13px; color: #B0B0B0;")
+        info_layout.addWidget(self.info_label)
+        main_layout.addWidget(info_frame)
 
-        self.load_venvs()
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(8)  # Reduced spacing between buttons
 
-        open_terminal_btn = QPushButton("Open Terminal")
-        open_cursor_btn = QPushButton("Open in Cursor")
-        new_btn = QPushButton("Create New Venv")
-        browse_btn = QPushButton("Browse Folder")
+        self.open_terminal_btn = ModernButton("Open Terminal")
+        self.new_btn = ModernButton("Create New Venv")
+        self.browse_btn = ModernButton("Browse Folder")
 
-        open_terminal_btn.clicked.connect(self.open_terminal)
-        open_cursor_btn.clicked.connect(self.open_cursor)
-        new_btn.clicked.connect(self.create_venv)
-        browse_btn.clicked.connect(self.browse_folder)
+        self.open_terminal_btn.clicked.connect(self.open_terminal)
+        self.new_btn.clicked.connect(self.create_venv)
+        self.browse_btn.clicked.connect(self.browse_folder)
         self.venv_list.currentItemChanged.connect(self.update_info)
 
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Virtual Environments:"))
-        layout.addWidget(self.venv_list)
-        layout.addWidget(self.info_label)
+        btn_layout.addWidget(self.new_btn)
+        btn_layout.addWidget(self.open_terminal_btn)
+        btn_layout.addWidget(self.browse_btn)
+        main_layout.addLayout(btn_layout)
 
-        btn_layout = QHBoxLayout()
-        btn_layout.addWidget(new_btn)
-        btn_layout.addWidget(open_terminal_btn)
-        btn_layout.addWidget(open_cursor_btn)
-        btn_layout.addWidget(browse_btn)
-
-        layout.addLayout(btn_layout)
-        self.setLayout(layout)
+        self.setLayout(main_layout)
+        self.base_path = str(Path.home())
+        self.load_venvs()
 
     def load_venvs(self):
         self.venv_list.clear()
@@ -125,7 +241,11 @@ class VenvManager(QWidget):
         if item:
             path = Path(item.text())
             python_exe = path / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-            self.info_label.setText(f"Path: {path}\nPython: {python_exe}")
+            self.info_label.setText(
+                f"<b>Path:</b> {path}<br>"
+                f"<b>Python:</b> {python_exe}<br>"
+                f"<b>Status:</b> <span style='color: #4CAF50;'>Ready to use</span>"
+            )
         else:
             self.info_label.setText("Select a venv to see details.")
 
@@ -191,66 +311,6 @@ class VenvManager(QWidget):
                 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not open terminal:\n{str(e)}")
-
-    def open_cursor(self):
-        item = self.venv_list.currentItem()
-        if not item:
-            QMessageBox.warning(self, "No selection", "Please select a venv first.")
-            return
-        
-        path = Path(item.text())
-        python_exe = path / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-        
-        try:
-            # Try different Cursor commands and locations
-            commands = [
-                ["cursor"],  # PATH
-                ["cursor.cmd"],  # Windows PATH
-                # Common Windows installation locations
-                [r"C:\Program Files\Cursor\Cursor.exe"],
-                [r"C:\Program Files (x86)\Cursor\Cursor.exe"],
-                [r"C:\Users\{}\AppData\Local\Programs\Cursor\Cursor.exe".format(os.getenv('USERNAME'))],
-                # Common macOS installation locations
-                ["/Applications/Cursor.app/Contents/MacOS/Cursor"],
-                # Common Linux installation locations
-                ["/usr/bin/cursor"],
-                ["/usr/local/bin/cursor"],
-                ["/opt/cursor/cursor"]
-            ]
-            
-            # Try each command until one works
-            for cmd in commands:
-                try:
-                    # Expand any environment variables in the path
-                    if isinstance(cmd[0], str):
-                        cmd[0] = os.path.expandvars(cmd[0])
-                    
-                    # Check if the executable exists
-                    if not os.path.exists(cmd[0]):
-                        continue
-                        
-                    # Set the Python interpreter environment variable
-                    env = os.environ.copy()
-                    env["PYTHONPATH"] = str(python_exe.parent.parent)
-                    
-                    subprocess.Popen([*cmd], env=env)
-                    return  # Success, exit the function
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    continue
-            
-            raise FileNotFoundError(
-                "Could not find Cursor executable in PATH or common installation locations.\n\n"
-                "To install Cursor:\n"
-                "1. Download from https://cursor.sh/\n"
-                "2. During installation, make sure to check 'Add to PATH'"
-            )
-            
-        except Exception as e:
-            QMessageBox.critical(
-                self, 
-                "Error", 
-                f"Could not launch Cursor:\n{str(e)}"
-            )
 
     def browse_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder to Scan for Venvs")
