@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
     QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea, QLineEdit, QComboBox, QDialog, QMenu, QToolTip
 )
-from PyQt5.QtCore import Qt, QSize, QRect
+from PyQt5.QtCore import Qt, QSize, QRect, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QCursor
 import fnmatch
 
@@ -31,6 +31,63 @@ class ModernButton(QPushButton):
                 background-color: #2E7D32;
             }
         """)
+
+class CollapsibleSection(QWidget):
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #2D2D2D;
+            }
+            QPushButton {
+                text-align: left;
+                padding: 4px;
+                border: none;
+                color: #E0E0E0;
+                font-weight: bold;
+                background-color: #2D2D2D;
+            }
+            QPushButton:hover {
+                color: #FFFFFF;
+                background-color: #2D2D2D;
+            }
+        """)
+        
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.toggle_button = QPushButton(title)
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)  # Start folded
+        self.toggle_button.clicked.connect(self.toggle)
+        
+        self.content = QWidget()
+        self.content.setMaximumHeight(0)  # Start with content hidden
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setSpacing(4)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.layout.addWidget(self.toggle_button)
+        self.layout.addWidget(self.content)
+        
+        self.animation = QPropertyAnimation(self.content, b"maximumHeight")
+        self.animation.setDuration(200)
+        self.animation.setEasingCurve(QEasingCurve.InOutQuad)
+        
+        self.update_arrow()
+        
+    def toggle(self):
+        checked = self.toggle_button.isChecked()
+        self.content.setMaximumHeight(0 if not checked else 16777215)
+        self.update_arrow()
+        
+    def update_arrow(self):
+        arrow = "▼" if self.toggle_button.isChecked() else "▶"
+        self.toggle_button.setText(f"{arrow} Paths")
+        
+    def add_widget(self, widget):
+        self.content_layout.addWidget(widget)
 
 class VenvManager(QWidget):
     def __init__(self):
@@ -291,13 +348,13 @@ class VenvManager(QWidget):
             for i in reversed(range(self.info_layout.count())): 
                 self.info_layout.itemAt(i).widget().setParent(None)
             
-            # Create new widgets with more compact layout
+            # Create collapsible section for paths
+            paths_section = CollapsibleSection("Paths")
             path_label = QLabel(f"<b>Path:</b> {path}")
             python_label = QLabel(f"<b>Python:</b> {python_exe}")
-            
-            # Add basic info
-            for label in [path_label, python_label]:
-                self.info_layout.addWidget(label)
+            paths_section.add_widget(path_label)
+            paths_section.add_widget(python_label)
+            self.info_layout.addWidget(paths_section)
             
             # Add separator
             separator = QFrame()
