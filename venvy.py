@@ -2,19 +2,19 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton,
     QFileDialog, QListWidget, QLabel, QHBoxLayout, QInputDialog, QMessageBox, QFrame, QScrollArea, QLineEdit, QComboBox, QDialog, QMenu, QToolTip
 )
-from PyQt5.QtCore import Qt, QSize, QRect, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QCursor
+from PyQt6.QtCore import Qt, QSize, QRect, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QFont, QPalette, QColor, QIcon, QCursor
 import fnmatch
 
 class ModernButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setFixedHeight(35)  # Slightly smaller height
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
@@ -146,7 +146,7 @@ class VenvManager(QWidget):
                 padding: 8px;
             }
         """)
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(title)
 
         # List widget with scroll area
@@ -173,7 +173,7 @@ class VenvManager(QWidget):
         """)
 
         self.venv_list = QListWidget()
-        self.venv_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.venv_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.venv_list.customContextMenuRequested.connect(self.show_context_menu)
         self.venv_list.setStyleSheet("""
             QListWidget {
@@ -358,7 +358,7 @@ class VenvManager(QWidget):
             
             # Add separator
             separator = QFrame()
-            separator.setFrameShape(QFrame.HLine)
+            separator.setFrameShape(QFrame.Shape.HLine)
             separator.setStyleSheet("background-color: #3D3D3D;")
             separator.setFixedHeight(1)
             self.info_layout.addWidget(separator)
@@ -529,13 +529,13 @@ class VenvManager(QWidget):
         
         # Dialog setup
         dialog.setFixedSize(400, 150)
-        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         
         # Connect signals
         create_btn.clicked.connect(dialog.accept)
         cancel_btn.clicked.connect(dialog.reject)
         
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = name_input.text().strip()
             if not name:
                 QMessageBox.warning(self, "Error", "Please enter a name for the virtual environment.")
@@ -615,7 +615,7 @@ class VenvManager(QWidget):
         delete_action = menu.addAction("Delete")
         delete_action.triggered.connect(lambda: self.delete_venv(item))
         
-        menu.exec_(self.venv_list.mapToGlobal(position))
+        menu.exec(self.venv_list.mapToGlobal(position))
 
     def delete_venv(self, item):
         path = Path(item.text())
@@ -649,12 +649,12 @@ class VenvManager(QWidget):
         layout.addLayout(button_layout)
         
         confirm_dialog.setFixedSize(400, 150)
-        confirm_dialog.setWindowModality(Qt.ApplicationModal)
+        confirm_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         
         delete_btn.clicked.connect(confirm_dialog.accept)
         cancel_btn.clicked.connect(confirm_dialog.reject)
         
-        if confirm_dialog.exec_() == QDialog.Accepted:
+        if confirm_dialog.exec() == QDialog.DialogCode.Accepted:
             try:
                 import shutil
                 shutil.rmtree(path)
@@ -668,4 +668,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = VenvManager()
     win.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
